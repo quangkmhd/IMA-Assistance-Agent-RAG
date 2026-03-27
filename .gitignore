@@ -1,0 +1,75 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# --- Virtual Environments ---
+.venv
+venv
+ENV
+env
+.env
+.venv/
+venv/
+ENV/
+env/
+.env/
+
+# --- IDEs / Editors ---
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# --- LlamaIndex / RAG / Data ---
+storage/
+data/
+*.db
+*.sqlite
+.chroma/
+vector_store/
+index_store/
+
+# --- Tools / Performance ---
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.pytype/
+.ipynb_checkpoints
+
+# --- Configuration & Secrets ---
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.secret
+*.pem
+*.key
+
+# --- Project Specific ---
+logs/
+*.log
+src/iqmeet_graphrag/cache/
