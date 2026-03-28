@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from llama_index.core import get_response_synthesizer
+from llama_index.core import get_response_synthesizer, Settings
 from llama_index.core.base.base_retriever import BaseRetriever
 from llama_index.core.query_engine import RetrieverQueryEngine
-from llama_index.llms.ollama import Ollama
 
 from iqmeet_graphrag.config.settings import AppSettings
 from iqmeet_graphrag.postprocessors import (
@@ -29,7 +28,7 @@ def build_query_engine(
     )
     fusion = build_fusion_retriever([router, event_retriever])
 
-    llm = Ollama(model=settings.llm_model, request_timeout=120.0)
+    llm = Settings.llm
     response_synthesizer = get_response_synthesizer(llm=llm, use_async=False)
 
     temporal_rerank = TemporalRerankPostprocessor(

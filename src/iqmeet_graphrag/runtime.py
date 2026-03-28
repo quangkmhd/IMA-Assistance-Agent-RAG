@@ -38,9 +38,14 @@ class RuntimeComponents:
     event_store: dict[str, EventRecord] = field(default_factory=dict)
 
 
+from iqmeet_graphrag.config.llm_initializer import setup_llm_and_embedding
+
 def build_runtime(
     settings: AppSettings, allowed_workspaces: set[str]
 ) -> RuntimeComponents:
+    # Cấu hình AI Provider toàn cục cho LlamaIndex (Sử dụng cấu trúc LiteLLM)
+    setup_llm_and_embedding(settings)
+    
     ingestion = MeetingIngestionPipeline(
         event_extractor=StructuredEventExtractor(settings=settings)
     )

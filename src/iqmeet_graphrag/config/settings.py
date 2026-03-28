@@ -1,13 +1,28 @@
-from pydantic import BaseModel, Field
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-class AppSettings(BaseModel):
+class AppSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_file='.env', env_file_encoding='utf-8')
     app_name: str = "iqmeet-agentic-temporal-graphrag"
     environment: str = "local"
 
-    llm_model: str = Field(default="llama3.1")
-    embedding_model: str = Field(default="BAAI/bge-small-en-v1.5")
+    llm_provider: str = Field(default="ollama", description="Lựa chọn: vertex_ai, gemini_ai_studio, ollama")
+    llm_model: str = Field(default="ollama/llama3.1")
+    
+    embedding_provider: str = Field(default="ollama")
+    embedding_model: str = Field(default="ollama/nomic-embed-text")
 
+    # Vertex AI settings
+    vertexai_project: str | None = Field(default=None)
+    vertexai_location: str | None = Field(default=None)
+    google_application_credentials: str | None = Field(default=None)
+    
+    # Gemini API Studio
+    gemini_api_key: str | None = Field(default=None)
+    
+    # Ollama settings
+    ollama_api_base: str = Field(default="http://localhost:11434")
     qdrant_url: str = Field(default="http://localhost:6333")
     qdrant_collection: str = Field(default="iqmeet_meeting_nodes")
 

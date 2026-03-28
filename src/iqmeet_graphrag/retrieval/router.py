@@ -1,10 +1,10 @@
 from __future__ import annotations
 
+from llama_index.core import Settings
 from llama_index.core.base.base_retriever import BaseRetriever
 from llama_index.core.retrievers import RouterRetriever
 from llama_index.core.selectors import PydanticMultiSelector
 from llama_index.core.tools import RetrieverTool
-from llama_index.llms.ollama import Ollama
 
 from iqmeet_graphrag.config.settings import AppSettings
 
@@ -15,7 +15,7 @@ def build_router_retriever(
     event_retriever: BaseRetriever,
     graph_retriever: BaseRetriever,
 ) -> RouterRetriever:
-    llm = Ollama(model=settings.llm_model, request_timeout=120.0)
+    llm = Settings.llm
 
     tools = [
         RetrieverTool.from_defaults(

@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from llama_index.core.schema import BaseNode
-from llama_index.llms.ollama import Ollama
+from llama_index.core import Settings
 from pydantic import BaseModel, Field
 
 from iqmeet_graphrag.config.settings import AppSettings
@@ -69,7 +69,7 @@ class _ExtractedEventPayload(BaseModel):
 class StructuredEventExtractor(EventExtractor):
     def __init__(self, settings: AppSettings) -> None:
         self._settings = settings
-        self._llm = Ollama(model=settings.llm_model, request_timeout=120.0)
+        self._llm = Settings.llm
         self._structured_llm = self._llm.as_structured_llm(_ExtractedEventPayload)
         self._failure_queue: list[ExtractionFailure] = []
 

@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from llama_index.core import VectorStoreIndex
+from llama_index.core import VectorStoreIndex, Settings
 from llama_index.core.schema import BaseNode
-from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.vector_stores.qdrant import QdrantVectorStore
 from qdrant_client import QdrantClient
 
@@ -16,7 +15,7 @@ class VectorIndexManager:
             client=client,
             collection_name=settings.qdrant_collection,
         )
-        self._embed_model = HuggingFaceEmbedding(model_name=settings.embedding_model)
+        self._embed_model = Settings.embed_model
         self._index: VectorStoreIndex | None = None
 
     def build_index(self, nodes: list[BaseNode]) -> VectorStoreIndex:
