@@ -1,40 +1,49 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from typing import Any
 
-from llama_index.core.retrievers import BaseRetriever
-from llama_index.core.schema import NodeWithScore, QueryBundle
+from langchain_core.callbacks import CallbackManagerForRetrieverRun
+from langchain_core.documents import Document
+from langchain_core.retrievers import BaseRetriever
 
 
 class CurrentStateEventRetrieverWrapper(BaseRetriever):
-    def __init__(
-        self, base_retriever: BaseRetriever, query_time: datetime | None = None
-    ) -> None:
-        self._base_retriever = base_retriever
-        self._query_time = query_time or datetime.now(timezone.utc)
+    """Wraps a base retriever to filter documents by temporal validity (current state)."""
 
-    def _retrieve(self, query_bundle: QueryBundle) -> list[NodeWithScore]:
-        nodes = self._base_retriever.retrieve(query_bundle)
-        filtered: list[NodeWithScore] = []
-        for node in nodes:
-            valid_from = node.node.metadata.get("valid_from")
-            valid_to = node.node.metadata.get("valid_to")
+    base_retriever: Any
+    query_time: datetime | None = None
+
+    class Config:
+        arbitrary_types_allowed = True
+
+    def _get_relevant_documents(
+        self, query: str, *, run_manager: CallbackManagerForRetrieverRun
+    ) -> list[Document]:
+        effective_time = self.query_time or datetime.now(timezone.utc)
+        docs = self.base_retriever.invoke(query)
+
+        filtered: list[Document] = []
+        for doc in docs:
+            valid_from = doc.metadata.get("valid_from")
+            valid_to = doc.metadata.get("valid_to")
 
             valid_from_dt = self._parse_time(valid_from)
             valid_to_dt = self._parse_time(valid_to)
 
-            if valid_from_dt and valid_from_dt > self._query_time:
+            if valid_from_dt and valid_from_dt > effective_time:
                 continue
-            if valid_to_dt and valid_to_dt < self._query_time:
+            if valid_to_dt and valid_to_dt < effective_time:
                 continue
-            if node.node.metadata.get("status") == "superseded":
+            if doc.metadata.get("status") == "superseded":
                 continue
 
-            filtered.append(node)
+            filtered.append(doc)
 
         return filtered
 
-    def _parse_time(self, value: object) -> datetime | None:
+    @staticmethod
+    def _parse_time(value: object) -> datetime | None:
         if value is None:
             return None
         if isinstance(value, datetime):

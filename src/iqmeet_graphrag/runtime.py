@@ -2,9 +2,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from typing import Any
 
-from llama_index.core import Document
-from llama_index.core.base.base_retriever import BaseRetriever
+from langchain_core.callbacks import CallbackManagerForRetrieverRun
+from langchain_core.documents import Document
+from langchain_core.retrievers import BaseRetriever
 
 from iqmeet_graphrag.config import AppSettings
 from iqmeet_graphrag.contracts.events import EventRecord
@@ -34,35 +36,44 @@ class RuntimeComponents:
     ingestion: MeetingIngestionPipeline
     vector_manager: VectorIndexManager
     graph_manager: GraphIndexManager
+    llm: Any = None
+    embeddings: Any = None
     meeting_store: dict[tuple[str, str], MeetingSnapshot] = field(default_factory=dict)
     event_store: dict[str, EventRecord] = field(default_factory=dict)
 
 
+class _EmptyRetriever(BaseRetriever):
+    """A no-op retriever that returns an empty list for any query."""
+
+    def _get_relevant_documents(
+        self, query: str, *, run_manager: CallbackManagerForRetrieverRun
+    ) -> list[Document]:
+        return []
+
+
 from iqmeet_graphrag.config.llm_initializer import setup_llm_and_embedding
+
 
 def build_runtime(
     settings: AppSettings, allowed_workspaces: set[str]
 ) -> RuntimeComponents:
-    # Cấu hình AI Provider toàn cục cho LlamaIndex (Sử dụng cấu trúc LiteLLM)
-    setup_llm_and_embedding(settings)
-    
+    # Initialize LLM and Embeddings
+    llm, embeddings = setup_llm_and_embedding(settings)
+
     ingestion = MeetingIngestionPipeline(
-        event_extractor=StructuredEventExtractor(settings=settings)
+        event_extractor=StructuredEventExtractor(settings=settings, llm=llm)
     )
 
-    vector_manager = VectorIndexManager(settings=settings)
-    graph_manager = GraphIndexManager(settings=settings)
+    vector_manager = VectorIndexManager(settings=settings, embeddings=embeddings)
+    graph_manager = GraphIndexManager(settings=settings, llm=llm)
 
-    class EmptyRetriever(BaseRetriever):
-        def _retrieve(self, query_bundle):
-            return []
-
-    fallback = EmptyRetriever()
+    fallback = _EmptyRetriever()
 
     query_engine = build_query_engine(
         settings=settings,
+        llm=llm,
         vector_retriever=fallback,
-        event_retriever=CurrentStateEventRetrieverWrapper(fallback),
+        event_retriever=CurrentStateEventRetrieverWrapper(base_retriever=fallback),
         graph_retriever=fallback,
     )
 
@@ -77,6 +88,8 @@ def build_runtime(
         ingestion=ingestion,
         vector_manager=vector_manager,
         graph_manager=graph_manager,
+        llm=llm,
+        embeddings=embeddings,
     )
 
 
@@ -93,45 +106,44 @@ def ingest_and_index_meeting(
         meeting_id=meeting_id,
     )
 
-    nodes = result.nodes
-    if nodes:
-        runtime.vector_manager.build_index(nodes=nodes)
+    chunks = result.nodes
+    if chunks:
+        runtime.vector_manager.add_documents(chunks)
 
     graph_docs = [
         Document(
-            text=node.get_content(),
+            page_content=chunk.page_content,
             metadata={
-                **node.metadata,
+                **chunk.metadata,
                 "workspace_id": workspace_id,
                 "meeting_id": meeting_id,
             },
         )
-        for node in nodes
+        for chunk in chunks
     ]
     if graph_docs:
         runtime.graph_manager.build_index(documents=graph_docs)
 
-    if (
-        runtime.vector_manager.index is not None
-        and runtime.graph_manager.index is not None
-    ):
-        vector_retriever = runtime.vector_manager.index.as_retriever(
-            similarity_top_k=settings.retrieval_top_k_vector
-        )
-        graph_retriever = runtime.graph_manager.index.as_retriever(
-            similarity_top_k=settings.retrieval_top_k_graph
-        )
-        event_retriever = CurrentStateEventRetrieverWrapper(
-            base_retriever=vector_retriever,
-        )
+    # Rebuild query engine with real retrievers
+    vector_retriever = runtime.vector_manager.as_retriever(
+        top_k=settings.retrieval_top_k_vector
+    )
+    event_retriever = CurrentStateEventRetrieverWrapper(
+        base_retriever=vector_retriever,
+    )
 
-        query_engine = build_query_engine(
-            settings=settings,
-            vector_retriever=vector_retriever,
-            event_retriever=event_retriever,
-            graph_retriever=graph_retriever,
-        )
-        runtime.service.set_query_engine(query_engine)
+    # Graph retriever is intentionally disabled until a true graph retriever
+    # backed by Neo4j traversal/Cypher is implemented.
+    graph_retriever = _EmptyRetriever()
+
+    query_engine = build_query_engine(
+        settings=settings,
+        llm=runtime.llm,
+        vector_retriever=vector_retriever,
+        event_retriever=event_retriever,
+        graph_retriever=graph_retriever,
+    )
+    runtime.service.set_query_engine(query_engine)
 
     snapshot = MeetingSnapshot(
         workspace_id=workspace_id,
@@ -141,7 +153,7 @@ def ingest_and_index_meeting(
         accepted_events=result.accepted_events,
         validation_issues=[issue.reason for issue in result.validation_issues],
         extraction_failures=result.extraction_failures,
-        indexed_nodes=len(nodes),
+        indexed_nodes=len(chunks),
     )
     runtime.meeting_store[(workspace_id, meeting_id)] = snapshot
     for event in result.accepted_events:
@@ -151,5 +163,5 @@ def ingest_and_index_meeting(
         "accepted_events": len(result.accepted_events),
         "validation_issues": len(result.validation_issues),
         "extraction_failures": len(result.extraction_failures),
-        "indexed_nodes": len(nodes),
+        "indexed_nodes": len(chunks),
     }

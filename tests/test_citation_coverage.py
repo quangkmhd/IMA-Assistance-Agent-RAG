@@ -10,20 +10,15 @@ from iqmeet_graphrag.config import AppSettings
 from iqmeet_graphrag.workflows import AgenticQueryWorkflow
 
 
-class _DummyNode:
+class _DummyDoc:
     def __init__(self, metadata: dict[str, str]):
         self.metadata = metadata
 
 
-class _DummySource:
-    def __init__(self, metadata: dict[str, str]):
-        self.node = _DummyNode(metadata=metadata)
-
-
 class _DummyResponse:
-    def __init__(self, text: str, sources: list[_DummySource]):
+    def __init__(self, text: str, docs: list[_DummyDoc]):
         self._text = text
-        self.source_nodes = sources
+        self.source_documents = docs
 
     def __str__(self) -> str:
         return self._text
@@ -35,8 +30,8 @@ class _DummyEngine:
         return _DummyResponse(
             "Answer with citations",
             [
-                _DummySource({"event_id": "evt_1", "block_id": "blk_1"}),
-                _DummySource({"event_id": "evt_2", "block_id": "blk_2"}),
+                _DummyDoc({"event_id": "evt_1", "block_id": "blk_1"}),
+                _DummyDoc({"event_id": "evt_2", "block_id": "blk_2"}),
             ],
         )
 

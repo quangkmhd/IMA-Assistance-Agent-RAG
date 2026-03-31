@@ -3,10 +3,10 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from hashlib import sha256
 from typing import Any
 
-from llama_index.core.schema import BaseNode
-from llama_index.core import Settings
+from langchain_core.documents import Document
 from pydantic import BaseModel, Field
 
 from iqmeet_graphrag.config.settings import AppSettings
@@ -16,14 +16,14 @@ from iqmeet_graphrag.contracts.events import EventRecord
 class EventExtractor(ABC):
     @abstractmethod
     def extract(
-        self, node: BaseNode, workspace_id: str, meeting_id: str
+        self, document: Document, workspace_id: str, meeting_id: str
     ) -> list[EventRecord]:
         raise NotImplementedError
 
 
 class NullEventExtractor(EventExtractor):
     def extract(
-        self, node: BaseNode, workspace_id: str, meeting_id: str
+        self, document: Document, workspace_id: str, meeting_id: str
     ) -> list[EventRecord]:
         return []
 
@@ -67,10 +67,10 @@ class _ExtractedEventPayload(BaseModel):
 
 
 class StructuredEventExtractor(EventExtractor):
-    def __init__(self, settings: AppSettings) -> None:
+    def __init__(self, settings: AppSettings, llm: Any) -> None:
         self._settings = settings
-        self._llm = Settings.llm
-        self._structured_llm = self._llm.as_structured_llm(_ExtractedEventPayload)
+        self._llm = llm
+        self._structured_llm = self._llm.with_structured_output(_ExtractedEventPayload)
         self._failure_queue: list[ExtractionFailure] = []
 
     @property
@@ -78,15 +78,15 @@ class StructuredEventExtractor(EventExtractor):
         return self._failure_queue
 
     def extract(
-        self, node: BaseNode, workspace_id: str, meeting_id: str
+        self, document: Document, workspace_id: str, meeting_id: str
     ) -> list[EventRecord]:
-        block_id = str(node.metadata.get("block_id") or node.node_id)
-        prompt = self._build_prompt(node_text=node.get_content(), block_id=block_id)
+        block_id = str(document.metadata.get("block_id") or document.metadata.get("id", "unknown"))
+        prompt = self._build_prompt(node_text=document.page_content, block_id=block_id)
 
         last_error = "unknown_extraction_error"
         for _attempt in range(self._settings.extraction_max_retries + 1):
             try:
-                response = self._structured_llm.complete(prompt)
+                response = self._structured_llm.invoke(prompt)
                 payload = self._coerce_payload(response)
                 return [
                     self._to_event_record(
@@ -108,14 +108,12 @@ class StructuredEventExtractor(EventExtractor):
         return []
 
     def _coerce_payload(self, response: Any) -> _ExtractedEventPayload:
-        if hasattr(response, "raw") and isinstance(
-            response.raw, _ExtractedEventPayload
-        ):
-            return response.raw
         if isinstance(response, _ExtractedEventPayload):
             return response
-        if hasattr(response, "text") and isinstance(response.text, str):
-            return _ExtractedEventPayload.model_validate_json(response.text)
+        if isinstance(response, dict):
+            return _ExtractedEventPayload.model_validate(response)
+        if hasattr(response, "content") and isinstance(response.content, str):
+            return _ExtractedEventPayload.model_validate_json(response.content)
         return _ExtractedEventPayload.model_validate(response)
 
     def _to_event_record(
@@ -130,8 +128,11 @@ class StructuredEventExtractor(EventExtractor):
         valid_from = self._to_datetime(item.valid_from) or occurred_at
         valid_to = self._to_datetime(item.valid_to)
 
+        event_id_raw = f"{block_id}:{item.event_type}:{item.value}:{occurred_at.isoformat()}"
+        event_id_hash = sha256(event_id_raw.encode("utf-8")).hexdigest()[:16]
+
         return EventRecord(
-            event_id=f"evt_{block_id}_{abs(hash((item.event_type, item.value, occurred_at.isoformat())))}",
+            event_id=f"evt_{event_id_hash}",
             workspace_id=workspace_id,
             meeting_id=meeting_id,
             block_id=block_id,

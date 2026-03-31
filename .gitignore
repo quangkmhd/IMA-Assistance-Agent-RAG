@@ -41,7 +41,7 @@ env/
 *.swo
 .DS_Store
 
-# --- LlamaIndex / RAG / Data ---
+# --- Langchain / RAG / Data ---
 storage/
 data/
 *.db

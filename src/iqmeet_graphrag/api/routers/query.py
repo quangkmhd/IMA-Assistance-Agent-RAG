@@ -57,17 +57,17 @@ async def query_plan(
         original_query=payload.query,
         rewritten_query=payload.query,
         intent=payload.intent,
-        time_range=TimeRange(from_=datetime.now(timezone.utc), to=None),
+        time_range=TimeRange.model_validate(
+            {"from": datetime.now(timezone.utc), "to": None}
+        ),
         entities=[],
         workspace_id=workspace.workspace_id,
     )
     retrieval_tools = ["event", "vector"]
-    if payload.intent.value == "relationship":
-        retrieval_tools = ["event", "vector", "graph"]
     plan = RetrievalPlan(
         plan_id=f"pln_{uuid4().hex}",
         tools=retrieval_tools,
-        top_k={"event": 30, "vector": 20, "graph": 10},
+        top_k={"event": 30, "vector": 20},
         query_payload={"query": payload.query, "workspace_id": workspace.workspace_id},
     )
     response = PlannerPayload(rewrite=rewrite, retrieval_plan=plan)

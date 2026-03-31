@@ -27,10 +27,10 @@ class AgenticQueryWorkflow:
         citations: list[Citation] = []
 
         while state.iteration < self._settings.reflection_max_iterations:
-            response = self._query_engine.query(state.query)
-            answer_text = str(response)
+            result = self._query_engine.query(state.query)
+            answer_text = str(result)
 
-            iteration_citations = self._extract_citations(response)
+            iteration_citations = self._extract_citations(result)
             new_evidence_ids = {
                 f"{c.event_id}:{c.block_id}" for c in iteration_citations
             }
@@ -66,21 +66,16 @@ class AgenticQueryWorkflow:
     def set_query_engine(self, query_engine: Any) -> None:
         self._query_engine = query_engine
 
-    def _extract_citations(self, response: Any) -> list[Citation]:
-        source_nodes = getattr(response, "source_nodes", [])
+    def _extract_citations(self, result: Any) -> list[Citation]:
+        """Extract citations from LangChain and legacy response formats."""
+        source_docs = getattr(result, "source_documents", None)
+        if source_docs is None:
+            source_docs = getattr(result, "source_nodes", [])
         citations: list[Citation] = []
-        for source in source_nodes:
-            source_metadata = getattr(source, "metadata", None)
-            source_node = getattr(source, "node", None)
-            node_metadata = getattr(source_node, "metadata", None)
-
-            metadata: dict[str, Any]
-            if isinstance(source_metadata, dict):
-                metadata = source_metadata
-            elif isinstance(node_metadata, dict):
-                metadata = node_metadata
-            else:
-                metadata = {}
+        for doc in source_docs:
+            metadata = getattr(doc, "metadata", None)
+            if metadata is None and hasattr(doc, "node"):
+                metadata = getattr(doc.node, "metadata", {})
             if not isinstance(metadata, dict):
                 metadata = {}
             citations.append(

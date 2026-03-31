@@ -16,5 +16,5 @@ class ConfidenceCalibrator:
         if not event.entity_id:
             penalty += 0.20
 
-        event.confidence = max(0.0, min(1.0, event.confidence - penalty))
-        return event
+        calibrated_confidence = max(0.0, min(1.0, event.confidence - penalty))
+        return event.model_copy(update={"confidence": calibrated_confidence})
