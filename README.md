@@ -1,13 +1,12 @@
 # IQMeetRAGv2 - Agentic Temporal GraphRAG
 
-![Version](https://img.shields.io/badge/version-0.2.0-blue.svg)
-![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)
-![License](https://img.shields.io/badge/license-MIT-green.svg)
-![Build](https://img.shields.io/badge/build-passing-brightgreen.svg)
+![Version](https://img.shields.io/badge/Version-0.2.0-blue.svg?style=flat-square)
+![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat-square&logo=python&logoColor=white)
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)
 
 A production-grade Agentic Temporal GraphRAG system designed for complex meeting intelligence. Built for AI engineers and businesses needing to extract accurate relationships, timelines, and insights from meeting transcripts. Achieves <1s latency with hybrid search and Reciprocal Rank Fusion (RRF) while supporting multi-provider LLMs.
 
-![Demo Visual](assets/demo.png)
+![Agentic Temporal GraphRAG Meeting Intelligence Demo](assets/demo.png)
 
 ## Key Features
 
@@ -120,8 +119,8 @@ os.environ["LITELLM_MODEL"] = "ollama/llama3"
 ## Troubleshooting
 
 **Error: Neo4j Connection Refused**
-* **Cause**: Neo4j container is not running or credentials are wrong.
-* **Fix**: Run `docker ps` to ensure Neo4j is up. Check `NEO4J_USERNAME` and `NEO4J_PASSWORD` in your `.env`.
+* **Cause**: Neo4j service is not running or credentials are wrong.
+* **Fix**: Ensure your local Neo4j instance is up and running. Check `NEO4J_USERNAME` and `NEO4J_PASSWORD` in your `.env`.
 
 **Error: Qdrant Timeout during Indexing**
 * **Cause**: Payload too large for the local Qdrant instance.
@@ -162,3 +161,4 @@ Distributed under the MIT License. See `LICENSE` for more information.
 ## Credits
 
 Special thanks to the LangChain community for the `langchain-qdrant` and `langchain-community` integrations, making this graph-vector hybrid architecture possible.
+s graph-vector hybrid architecture possible.
