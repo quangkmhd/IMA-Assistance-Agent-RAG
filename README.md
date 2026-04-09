@@ -1,4 +1,4 @@
-# IQMeetRAGv2 - Agentic Temporal GraphRAG
+# IMA Assistance Agent RAG - Agentic Temporal GraphRAG
 
 ![Version](https://img.shields.io/badge/Version-0.2.0-blue.svg?style=flat-square)
 ![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat-square&logo=python&logoColor=white)
